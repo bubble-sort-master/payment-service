@@ -1,0 +1,6 @@
+spring:
+    mongodb:
+      uri: ${mongodb.uri}
+external:
+  random-number:
+    url: ${random.service.url}
