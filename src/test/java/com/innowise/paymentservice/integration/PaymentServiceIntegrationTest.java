@@ -58,7 +58,8 @@ class PaymentServiceIntegrationTest {
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.data.mongodb.uri", mongoDBContainer::getReplicaSetUrl);
+    registry.add("spring.mongodb.uri", () ->
+            "mongodb://" + mongoDBContainer.getHost() + ":" + mongoDBContainer.getMappedPort(27017) + "/test");
     registry.add("external.random-number.url", () -> "http://localhost:" + wireMockServer.port());
     registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
   }
