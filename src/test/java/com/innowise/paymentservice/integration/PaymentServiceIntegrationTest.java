@@ -45,6 +45,7 @@ class PaymentServiceIntegrationTest {
 
   @Container
   static final KafkaContainer kafka = new KafkaContainer("5.5.1")
+          .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "true")
           .withStartupTimeout(Duration.ofMinutes(3));
 
   @Autowired
