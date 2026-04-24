@@ -1,0 +1,9 @@
+spring:
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://mongodb:27017/payment-service}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+
+external:
+  random-number:
+    url: ${RANDOM_NUMBER_SERVICE_URL:http://random-number-service:8090}

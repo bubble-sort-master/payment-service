@@ -8,6 +8,7 @@ import com.innowise.paymentservice.entity.PaymentStatus;
 import com.innowise.paymentservice.exception.PaymentProcessingException;
 import com.innowise.paymentservice.mapper.PaymentMapper;
 import com.innowise.paymentservice.repository.PaymentRepository;
+import com.innowise.paymentservice.service.KafkaProducerService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -43,6 +44,9 @@ class PaymentServiceImplTest {
 
   @Mock
   private RandomNumberClient randomNumberClient;
+
+  @Mock
+  private KafkaProducerService kafkaProducerService;
 
   @InjectMocks
   private PaymentServiceImpl paymentService;

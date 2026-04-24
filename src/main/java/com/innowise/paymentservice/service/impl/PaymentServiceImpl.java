@@ -5,15 +5,18 @@ import com.innowise.paymentservice.dto.request.CreatePaymentRequest;
 import com.innowise.paymentservice.dto.response.PaymentResponse;
 import com.innowise.paymentservice.entity.Payment;
 import com.innowise.paymentservice.entity.PaymentStatus;
+import com.innowise.paymentservice.event.PaymentEvent;
 import com.innowise.paymentservice.mapper.PaymentMapper;
 import com.innowise.paymentservice.model.Money;
 import com.innowise.paymentservice.repository.PaymentRepository;
+import com.innowise.paymentservice.service.KafkaProducerService;
 import com.innowise.paymentservice.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -29,8 +32,10 @@ public class PaymentServiceImpl implements PaymentService {
   private final MongoTemplate mongoTemplate;
   private final PaymentMapper paymentMapper;
   private final RandomNumberClient randomNumberClient;
+  private final KafkaProducerService kafkaProducerService;
 
   @Override
+  @Transactional
   public PaymentResponse create(CreatePaymentRequest request) {
     Integer random = randomNumberClient.getRandomNumber();
     PaymentStatus status = (random % 2 == 0) ? PaymentStatus.SUCCESS : PaymentStatus.FAILED;
@@ -39,6 +44,10 @@ public class PaymentServiceImpl implements PaymentService {
     payment.setStatus(status);
     payment.setTimestamp(LocalDateTime.now());
     Payment saved = paymentRepository.save(payment);
+
+    kafkaProducerService.sendPaymentEvent(
+            new PaymentEvent(saved.getOrderId(), saved.getStatus(), saved.getTimestamp())
+    );
 
     return paymentMapper.toDto(saved);
   }
@@ -75,7 +84,7 @@ public class PaymentServiceImpl implements PaymentService {
     var result = mongoTemplate.aggregate(agg, Payment.class, TotalSumResult.class)
             .getUniqueMappedResult();
 
-    return result != null ? Money.of(result.total()).toBigDecimal() : BigDecimal.ZERO;
+    return result != null ? Money.of(result.total()).toBigDecimal() : Money.zero().toBigDecimal();
   }
 
   @Override
@@ -87,7 +96,7 @@ public class PaymentServiceImpl implements PaymentService {
     var result = mongoTemplate.aggregate(agg, Payment.class, TotalSumResult.class)
             .getUniqueMappedResult();
 
-    return result != null ? Money.of(result.total()).toBigDecimal() : BigDecimal.ZERO;
+    return result != null ? Money.of(result.total()).toBigDecimal() : Money.zero().toBigDecimal();
   }
 
  static class TotalSumResult {

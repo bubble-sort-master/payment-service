@@ -7,6 +7,8 @@ spring:
     openfeign:
       circuitbreaker:
         enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 resilience4j:
   circuitbreaker:
     instances:
@@ -16,6 +18,7 @@ resilience4j:
         slidingWindowSize: 10
         permittedNumberOfCallsInHalfOpenState: 3
         minimumNumberOfCalls: 5
+
 external:
   random-number:
     url: ${RANDOM_NUMBER_SERVICE_URL:http://localhost:8090}

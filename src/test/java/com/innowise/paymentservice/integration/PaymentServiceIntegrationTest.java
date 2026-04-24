@@ -7,10 +7,7 @@ import com.innowise.paymentservice.entity.Payment;
 import com.innowise.paymentservice.entity.PaymentStatus;
 import com.innowise.paymentservice.model.Money;
 import com.innowise.paymentservice.repository.PaymentRepository;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
@@ -21,11 +18,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -42,7 +41,11 @@ class PaymentServiceIntegrationTest {
   private static final WireMockServer wireMockServer = new WireMockServer(0);
 
   @Container
-  static final MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:6.0");
+  static final MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:4.4");
+
+  @Container
+  static final KafkaContainer kafka = new KafkaContainer("5.5.1")
+          .withStartupTimeout(Duration.ofMinutes(3));
 
   @Autowired
   private WebApplicationContext context;
@@ -50,13 +53,14 @@ class PaymentServiceIntegrationTest {
   @Autowired
   private PaymentRepository paymentRepository;
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
   private MockMvc mockMvc;
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("mongodb.uri", mongoDBContainer::getReplicaSetUrl);
-    registry.add("random.service.url", () -> "http://localhost:" + wireMockServer.port() + "/api/random");
+    registry.add("spring.data.mongodb.uri", mongoDBContainer::getReplicaSetUrl);
+    registry.add("external.random-number.url", () -> "http://localhost:" + wireMockServer.port());
+    registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
   }
 
   @BeforeAll
@@ -66,9 +70,7 @@ class PaymentServiceIntegrationTest {
 
   @AfterAll
   static void stopWireMock() {
-    if (wireMockServer != null) {
-      wireMockServer.stop();
-    }
+    wireMockServer.stop();
   }
 
   @BeforeEach
@@ -94,6 +96,70 @@ class PaymentServiceIntegrationTest {
     payment.setPaymentAmount(amount);
     payment.setTimestamp(timestamp);
     return paymentRepository.save(payment);
+  }
+
+  @Test
+  void createPayment_shouldSendKafkaEvent_whenKafkaIsAvailable() throws Exception {
+    stubRandomNumber(4);
+
+    CreatePaymentRequest request =
+            new CreatePaymentRequest("order-k1", 10L, BigDecimal.valueOf(123));
+
+    mockMvc.perform(MockMvcRequestBuilders.post("/api/payments")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isCreated());
+
+    List<Payment> payments = paymentRepository.findAll();
+    assertThat(payments).hasSize(1);
+    assertThat(kafka.isRunning()).isTrue();
+  }
+
+  @Test
+  void createPayment_shouldReturn503_whenKafkaIsDown() throws Exception {
+    kafka.stop();
+
+    stubRandomNumber(4);
+
+    CreatePaymentRequest request =
+            new CreatePaymentRequest("order-k2", 20L, BigDecimal.valueOf(50));
+
+    mockMvc.perform(MockMvcRequestBuilders.post("/api/payments")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isServiceUnavailable());
+  }
+
+  @Test
+  void createPayment_shouldReturn503_whenKafkaTimeouts() throws Exception {
+    stubRandomNumber(4);
+
+    System.setProperty("spring.kafka.producer.properties.delivery.timeout.ms", "1");
+    System.setProperty("spring.kafka.producer.properties.request.timeout.ms", "1");
+
+    CreatePaymentRequest request =
+            new CreatePaymentRequest("order-k3", 30L, BigDecimal.valueOf(77));
+
+    mockMvc.perform(MockMvcRequestBuilders.post("/api/payments")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isServiceUnavailable());
+  }
+
+  @Test
+  void createPayment_shouldReturn503_whenKafkaSerializationFails() throws Exception {
+    stubRandomNumber(4);
+
+    System.setProperty("spring.kafka.producer.value-serializer",
+            "org.apache.kafka.common.serialization.ByteArraySerializer");
+
+    CreatePaymentRequest request =
+            new CreatePaymentRequest("order-k4", 40L, BigDecimal.valueOf(88));
+
+    mockMvc.perform(MockMvcRequestBuilders.post("/api/payments")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isServiceUnavailable());
   }
 
   @Test

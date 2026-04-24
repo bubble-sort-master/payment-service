@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:4.4
+    container_name: payment-mongo
+    restart: always
+    environment:
+      MONGO_INITDB_DATABASE: payment-service
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:5.5.1
+    container_name: payment-zookeeper
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:5.5.1
+    container_name: payment-kafka
+    restart: always
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_HEAP_OPTS: "-Xmx256m -Xms128m"
+      KAFKA_JVM_PERFORMANCE_OPTS: "-server -XX:+UseG1GC"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+
+  app:
+    build: .
+    container_name: payment-app
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mongodb
+      - kafka
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MONGODB_URI: mongodb://mongodb:27017/payment-service
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      RANDOM_NUMBER_SERVICE_URL: ${RANDOM_NUMBER_SERVICE_URL}
+    env_file:
+      - .env
+
+volumes:
+  mongo-data:
+  kafka-data:

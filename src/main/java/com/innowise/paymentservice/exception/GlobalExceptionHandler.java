@@ -43,6 +43,13 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
   }
 
+  @ExceptionHandler(PaymentEventPublishingException.class)
+  public ResponseEntity<String> handlePaymentEventPublishing(PaymentEventPublishingException ex) {
+    log.error("Failed to publish payment event: {}", ex.getMessage(), ex);
+    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body("Payment event could not be published. Please try again later.");
+  }
+
   @ExceptionHandler(Exception.class)
   public ResponseEntity<String> handleGenericException(Exception ex) {
     log.error("Unexpected error occurred", ex);
