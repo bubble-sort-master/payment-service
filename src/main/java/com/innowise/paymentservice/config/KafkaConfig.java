@@ -1,4 +1,4 @@
-/*package com.innowise.paymentservice.config;
+package com.innowise.paymentservice.config;
 
 import com.innowise.paymentservice.event.PaymentEvent;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -34,4 +34,4 @@ public class KafkaConfig {
   public KafkaTemplate<String, PaymentEvent> kafkaTemplate() {
     return new KafkaTemplate<>(producerFactory());
   }
-}*/
+}
