@@ -18,8 +18,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.kafka.KafkaContainer;
+import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -44,8 +45,9 @@ class PaymentServiceIntegrationTest {
   static final MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:4.4");
 
   @Container
-  static final KafkaContainer kafka = new KafkaContainer("5.5.1")
-          .withStartupTimeout(Duration.ofMinutes(3));
+  static final KafkaContainer kafka = new KafkaContainer(
+          DockerImageName.parse("apache/kafka-native:3.8.0")
+  ).withStartupTimeout(Duration.ofMinutes(3));
 
   @Autowired
   private WebApplicationContext context;

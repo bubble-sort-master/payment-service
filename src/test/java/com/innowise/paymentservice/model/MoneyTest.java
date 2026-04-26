@@ -27,7 +27,8 @@ class MoneyTest {
 
   @Test
   void ofBigDecimal_shouldThrowWhenMoreThanTwoDecimalPlaces() {
-    assertThatThrownBy(() -> Money.of(BigDecimal.valueOf(10.999)))
+    BigDecimal value = BigDecimal.valueOf(10.999);
+    assertThatThrownBy(() -> Money.of(value))
             .isInstanceOf(ArithmeticException.class);
   }
 
@@ -54,7 +55,7 @@ class MoneyTest {
     Money result = first.add(second);
 
     assertThat(result.getAmountInCents()).isEqualTo(1250L);
-    assertThat(result.toString()).isEqualTo("12.50");
+    assertThat(result).hasToString("12.50");
   }
 
   @Test
@@ -65,7 +66,7 @@ class MoneyTest {
     Money result = first.subtract(second);
 
     assertThat(result.getAmountInCents()).isEqualTo(750L);
-    assertThat(result.toString()).isEqualTo("7.50");
+    assertThat(result).hasToString("7.50");
   }
 
   @Test
@@ -85,7 +86,7 @@ class MoneyTest {
     Money result = money.multiply(3);
 
     assertThat(result.getAmountInCents()).isEqualTo(1500L);
-    assertThat(result.toString()).isEqualTo("15.00");
+    assertThat(result).hasToString("15.00");
   }
 
   @Test
@@ -105,7 +106,7 @@ class MoneyTest {
 
     assertThat(smaller.compareTo(bigger)).isLessThan(0);
     assertThat(bigger.compareTo(smaller)).isGreaterThan(0);
-    assertThat(smaller.compareTo(same)).isZero();
+    assertThat(smaller).isEqualByComparingTo(same);
   }
 
   @Test
@@ -113,8 +114,7 @@ class MoneyTest {
     Money first = Money.of(1000L);
     Money second = Money.of(1000L);
 
-    assertThat(first).isEqualTo(second);
-    assertThat(first.hashCode()).isEqualTo(second.hashCode());
+    assertThat(first).isEqualTo(second).hasSameHashCodeAs(second);
   }
 
   @Test
@@ -150,6 +150,6 @@ class MoneyTest {
   void toString_shouldReturnAmountWithTwoDecimalPlaces() {
     Money money = Money.of(1234L);
 
-    assertThat(money.toString()).isEqualTo("12.34");
+    assertThat(money).hasToString("12.34");
   }
 }

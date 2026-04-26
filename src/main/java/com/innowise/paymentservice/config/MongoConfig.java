@@ -15,11 +15,9 @@ public class MongoConfig {
 
   @Bean
   public MongoCustomConversions customConversions() {
-    return MongoCustomConversions.create(config -> {
-      config.registerConverters(Arrays.asList(
-              new MoneyToLongConverter(),
-              new LongToMoneyConverter()
-      ));
-    });
+    return MongoCustomConversions.create(config -> config.registerConverters(Arrays.asList(
+            new MoneyToLongConverter(),
+            new LongToMoneyConverter()
+    )));
   }
 }
