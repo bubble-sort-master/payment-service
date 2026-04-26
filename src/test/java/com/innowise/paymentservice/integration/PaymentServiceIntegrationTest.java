@@ -32,6 +32,8 @@ import java.util.List;
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.testcontainers.utility.DockerImageName;
 
 @SpringBootTest
 @Testcontainers(disabledWithoutDocker = true)
@@ -44,9 +46,11 @@ class PaymentServiceIntegrationTest {
   static final MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:4.4");
 
   @Container
-  static final KafkaContainer kafka = new KafkaContainer("5.5.1")
-          .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "true")
-          .withStartupTimeout(Duration.ofMinutes(3));
+  @ServiceConnection                                   // ← Spring Boot сам подставит bootstrap-servers
+  static final KafkaContainer kafka = new KafkaContainer(
+          DockerImageName.parse("confluentinc/cp-kafka:7.6.1")
+  )
+          .withStartupTimeout(Duration.ofMinutes(4));
 
   @Autowired
   private WebApplicationContext context;
@@ -62,7 +66,6 @@ class PaymentServiceIntegrationTest {
     registry.add("spring.mongodb.uri", () ->
             "mongodb://" + mongoDBContainer.getHost() + ":" + mongoDBContainer.getMappedPort(27017) + "/test");
     registry.add("external.random-number.url", () -> "http://localhost:" + wireMockServer.port());
-    registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
   }
 
   @BeforeAll
