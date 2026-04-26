@@ -114,8 +114,7 @@ class MoneyTest {
     Money first = Money.of(1000L);
     Money second = Money.of(1000L);
 
-    assertThat(first).isEqualTo(second);
-    assertThat(first).hasSameHashCodeAs(second);
+    assertThat(first).isEqualTo(second).hasSameHashCodeAs(second);
   }
 
   @Test
