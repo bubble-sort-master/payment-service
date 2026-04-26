@@ -5,6 +5,8 @@ import com.innowise.paymentservice.dto.request.CreatePaymentRequest;
 import com.innowise.paymentservice.dto.response.PaymentResponse;
 import com.innowise.paymentservice.entity.Payment;
 import com.innowise.paymentservice.entity.PaymentStatus;
+import com.innowise.paymentservice.event.PaymentEvent;
+import com.innowise.paymentservice.exception.PaymentEventPublishingException;
 import com.innowise.paymentservice.exception.PaymentProcessingException;
 import com.innowise.paymentservice.mapper.PaymentMapper;
 import com.innowise.paymentservice.repository.PaymentRepository;
@@ -58,8 +60,23 @@ class PaymentServiceImplTest {
   @Test
   void create_shouldReturnSuccessWhenRandomIsEven() {
     Payment paymentEntity = new Payment();
+
     Payment savedEntity = new Payment();
-    PaymentResponse response = new PaymentResponse("id", "order-1", 1L, PaymentStatus.SUCCESS, LocalDateTime.now(), BigDecimal.valueOf(100.00), null, null);
+    savedEntity.setOrderId("order-1");
+    savedEntity.setUserId(1L);
+    savedEntity.setStatus(PaymentStatus.SUCCESS);
+    savedEntity.setTimestamp(LocalDateTime.now());
+
+    PaymentResponse response = new PaymentResponse(
+            "id",
+            "order-1",
+            1L,
+            PaymentStatus.SUCCESS,
+            savedEntity.getTimestamp(),
+            BigDecimal.valueOf(100.00),
+            null,
+            null
+    );
 
     when(randomNumberClient.getRandomNumber()).thenReturn(2);
     when(paymentMapper.toEntity(validRequest)).thenReturn(paymentEntity);
@@ -72,9 +89,18 @@ class PaymentServiceImplTest {
 
     ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
     verify(paymentRepository).save(paymentCaptor.capture());
+
     Payment capturedPayment = paymentCaptor.getValue();
     assertThat(capturedPayment.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
     assertThat(capturedPayment.getTimestamp()).isNotNull();
+
+    ArgumentCaptor<PaymentEvent> eventCaptor = ArgumentCaptor.forClass(PaymentEvent.class);
+    verify(kafkaProducerService).sendPaymentEvent(eventCaptor.capture());
+
+    PaymentEvent event = eventCaptor.getValue();
+    assertThat(event.orderId()).isEqualTo("order-1");
+    assertThat(event.status()).isEqualTo(PaymentStatus.SUCCESS);
+    assertThat(event.timestamp()).isNotNull();
   }
 
   @Test
@@ -185,5 +211,33 @@ class PaymentServiceImplTest {
     BigDecimal sum = paymentService.getTotalSumForDateRangeForAllUsers(from, to);
 
     assertThat(sum).isEqualByComparingTo(BigDecimal.valueOf(1200.00));
+  }
+
+  @Test
+  void create_shouldThrowPaymentEventPublishingExceptionWhenKafkaPublishingFails() {
+    Payment paymentEntity = new Payment();
+
+    Payment savedEntity = new Payment();
+    savedEntity.setOrderId("order-1");
+    savedEntity.setUserId(1L);
+    savedEntity.setStatus(PaymentStatus.SUCCESS);
+    savedEntity.setTimestamp(LocalDateTime.now());
+
+    when(randomNumberClient.getRandomNumber()).thenReturn(2);
+    when(paymentMapper.toEntity(validRequest)).thenReturn(paymentEntity);
+    when(paymentRepository.save(any(Payment.class))).thenReturn(savedEntity);
+
+    doThrow(new PaymentEventPublishingException(
+            "Could not publish payment event",
+            new RuntimeException("Kafka error")
+    )).when(kafkaProducerService).sendPaymentEvent(any(PaymentEvent.class));
+
+    assertThatThrownBy(() -> paymentService.create(validRequest))
+            .isInstanceOf(PaymentEventPublishingException.class)
+            .hasMessageContaining("Could not publish payment event");
+
+    verify(paymentRepository).save(any(Payment.class));
+    verify(kafkaProducerService).sendPaymentEvent(any(PaymentEvent.class));
+    verify(paymentMapper, never()).toDto(any(Payment.class));
   }
 }
