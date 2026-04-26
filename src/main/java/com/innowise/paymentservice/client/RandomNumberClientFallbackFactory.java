@@ -11,12 +11,9 @@ public class RandomNumberClientFallbackFactory implements FallbackFactory<Random
 
   @Override
   public RandomNumberClient create(Throwable cause) {
-    return new RandomNumberClient() {
-      @Override
-      public Integer getRandomNumber() {
-        handleException(cause);
-        return null;
-      }
+    return () -> {
+      handleException(cause);
+      return null;
     };
   }
 

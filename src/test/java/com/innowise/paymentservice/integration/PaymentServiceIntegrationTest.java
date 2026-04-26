@@ -18,8 +18,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.kafka.KafkaContainer;
+import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -44,8 +45,9 @@ class PaymentServiceIntegrationTest {
   static final MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:4.4");
 
   @Container
-  static final KafkaContainer kafka = new KafkaContainer("5.5.1")
-          .withStartupTimeout(Duration.ofMinutes(3));
+  static final KafkaContainer kafka = new KafkaContainer(
+          DockerImageName.parse("apache/kafka-native:3.8.0")
+  ).withStartupTimeout(Duration.ofMinutes(3));
 
   @Autowired
   private WebApplicationContext context;
@@ -115,53 +117,6 @@ class PaymentServiceIntegrationTest {
     assertThat(payments).hasSize(1);
     assertThat(kafka.isRunning()).isTrue();
   }
-
- /* @Test
-  void createPayment_shouldReturn503_whenKafkaIsDown() throws Exception {
-    kafka.stop();
-
-    stubRandomNumber(4);
-
-    CreatePaymentRequest request =
-            new CreatePaymentRequest("order-k2", 20L, BigDecimal.valueOf(50));
-
-    mockMvc.perform(MockMvcRequestBuilders.post("/api/payments")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isServiceUnavailable());
-  }*/
-
- /* @Test
-  void createPayment_shouldReturn503_whenKafkaTimeouts() throws Exception {
-    stubRandomNumber(4);
-
-    System.setProperty("spring.kafka.producer.properties.delivery.timeout.ms", "1");
-    System.setProperty("spring.kafka.producer.properties.request.timeout.ms", "1");
-
-    CreatePaymentRequest request =
-            new CreatePaymentRequest("order-k3", 30L, BigDecimal.valueOf(77));
-
-    mockMvc.perform(MockMvcRequestBuilders.post("/api/payments")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isServiceUnavailable());
-  }
-
-  @Test
-  void createPayment_shouldReturn503_whenKafkaSerializationFails() throws Exception {
-    stubRandomNumber(4);
-
-    System.setProperty("spring.kafka.producer.value-serializer",
-            "org.apache.kafka.common.serialization.ByteArraySerializer");
-
-    CreatePaymentRequest request =
-            new CreatePaymentRequest("order-k4", 40L, BigDecimal.valueOf(88));
-
-    mockMvc.perform(MockMvcRequestBuilders.post("/api/payments")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isServiceUnavailable());
-  }*/
 
   @Test
   void createPayment_shouldReturnSuccessWhenRandomIsEven() throws Exception {
