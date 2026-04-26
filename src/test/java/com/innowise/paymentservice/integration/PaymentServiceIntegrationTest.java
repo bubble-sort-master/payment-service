@@ -116,53 +116,6 @@ class PaymentServiceIntegrationTest {
     assertThat(kafka.isRunning()).isTrue();
   }
 
- /* @Test
-  void createPayment_shouldReturn503_whenKafkaIsDown() throws Exception {
-    kafka.stop();
-
-    stubRandomNumber(4);
-
-    CreatePaymentRequest request =
-            new CreatePaymentRequest("order-k2", 20L, BigDecimal.valueOf(50));
-
-    mockMvc.perform(MockMvcRequestBuilders.post("/api/payments")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isServiceUnavailable());
-  }*/
-
- /* @Test
-  void createPayment_shouldReturn503_whenKafkaTimeouts() throws Exception {
-    stubRandomNumber(4);
-
-    System.setProperty("spring.kafka.producer.properties.delivery.timeout.ms", "1");
-    System.setProperty("spring.kafka.producer.properties.request.timeout.ms", "1");
-
-    CreatePaymentRequest request =
-            new CreatePaymentRequest("order-k3", 30L, BigDecimal.valueOf(77));
-
-    mockMvc.perform(MockMvcRequestBuilders.post("/api/payments")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isServiceUnavailable());
-  }
-
-  @Test
-  void createPayment_shouldReturn503_whenKafkaSerializationFails() throws Exception {
-    stubRandomNumber(4);
-
-    System.setProperty("spring.kafka.producer.value-serializer",
-            "org.apache.kafka.common.serialization.ByteArraySerializer");
-
-    CreatePaymentRequest request =
-            new CreatePaymentRequest("order-k4", 40L, BigDecimal.valueOf(88));
-
-    mockMvc.perform(MockMvcRequestBuilders.post("/api/payments")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isServiceUnavailable());
-  }*/
-
   @Test
   void createPayment_shouldReturnSuccessWhenRandomIsEven() throws Exception {
     stubRandomNumber(4);
