@@ -28,7 +28,7 @@ public class Payment {
 
   @Indexed
   @Field("order_id")
-  private String orderId;
+  private Long orderId;
 
   @Indexed
   @Field("user_id")

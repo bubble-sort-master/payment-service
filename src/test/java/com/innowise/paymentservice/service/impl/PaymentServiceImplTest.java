@@ -53,7 +53,7 @@ class PaymentServiceImplTest {
   @InjectMocks
   private PaymentServiceImpl paymentService;
 
-  private final CreatePaymentRequest validRequest = new CreatePaymentRequest("order-1", 1L, BigDecimal.valueOf(100.00));
+  private final CreatePaymentRequest validRequest = new CreatePaymentRequest(1L, 1L, BigDecimal.valueOf(100.00));
   private final LocalDateTime from = LocalDateTime.of(2025, 1, 1, 0, 0);
   private final LocalDateTime to = LocalDateTime.of(2025, 12, 31, 23, 59);
 
@@ -62,14 +62,14 @@ class PaymentServiceImplTest {
     Payment paymentEntity = new Payment();
 
     Payment savedEntity = new Payment();
-    savedEntity.setOrderId("order-1");
+    savedEntity.setOrderId(1L);
     savedEntity.setUserId(1L);
     savedEntity.setStatus(PaymentStatus.SUCCESS);
     savedEntity.setTimestamp(LocalDateTime.now());
 
     PaymentResponse response = new PaymentResponse(
             "id",
-            "order-1",
+            1L,
             1L,
             PaymentStatus.SUCCESS,
             savedEntity.getTimestamp(),
@@ -98,7 +98,7 @@ class PaymentServiceImplTest {
     verify(kafkaProducerService).sendPaymentEvent(eventCaptor.capture());
 
     PaymentEvent event = eventCaptor.getValue();
-    assertThat(event.orderId()).isEqualTo("order-1");
+    assertThat(event.orderId()).isEqualTo(1L);
     assertThat(event.status()).isEqualTo(PaymentStatus.SUCCESS);
     assertThat(event.timestamp()).isNotNull();
   }
@@ -107,7 +107,7 @@ class PaymentServiceImplTest {
   void create_shouldReturnFailedWhenRandomIsOdd() {
     Payment paymentEntity = new Payment();
     Payment savedEntity = new Payment();
-    PaymentResponse response = new PaymentResponse("id", "order-2", 2L, PaymentStatus.FAILED, LocalDateTime.now(), BigDecimal.valueOf(50.00), null, null);
+    PaymentResponse response = new PaymentResponse("id", 2L, 2L, PaymentStatus.FAILED, LocalDateTime.now(), BigDecimal.valueOf(50.00), null, null);
 
     when(randomNumberClient.getRandomNumber()).thenReturn(3);
     when(paymentMapper.toEntity(validRequest)).thenReturn(paymentEntity);
@@ -163,7 +163,7 @@ class PaymentServiceImplTest {
     when(mongoTemplate.find(any(Query.class), eq(Payment.class))).thenReturn(List.of(payment));
     when(paymentMapper.toDto(payment)).thenReturn(response);
 
-    List<PaymentResponse> result = paymentService.getPayments(null, "order-1", "success");
+    List<PaymentResponse> result = paymentService.getPayments(null, 1L, "success");
 
     assertThat(result).hasSize(1);
     verify(mongoTemplate).find(any(Query.class), eq(Payment.class));
@@ -218,7 +218,7 @@ class PaymentServiceImplTest {
     Payment paymentEntity = new Payment();
 
     Payment savedEntity = new Payment();
-    savedEntity.setOrderId("order-1");
+    savedEntity.setOrderId(1L);
     savedEntity.setUserId(1L);
     savedEntity.setStatus(PaymentStatus.SUCCESS);
     savedEntity.setTimestamp(LocalDateTime.now());

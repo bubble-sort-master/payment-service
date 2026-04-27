@@ -53,12 +53,12 @@ public class PaymentController {
    * @param orderId optional order identifier.
    * @param status  optional payment status (e.g. SUCCESS, FAILED).
    * @return list of matching payments.
-   * @see PaymentService#getPayments(Long, String, String)
+   * @see PaymentService#getPayments(Long, Long, String)
    */
   @GetMapping
   public ResponseEntity<List<PaymentResponse>> getPayments(
           @RequestParam(required = false) Long userId,
-          @RequestParam(required = false) String orderId,
+          @RequestParam(required = false) Long orderId,
           @RequestParam(required = false) String status) {
     return ResponseEntity.ok(paymentService.getPayments(userId, orderId, status));
   }

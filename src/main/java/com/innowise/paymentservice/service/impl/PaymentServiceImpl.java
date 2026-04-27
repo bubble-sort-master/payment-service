@@ -53,7 +53,7 @@ public class PaymentServiceImpl implements PaymentService {
   }
 
   @Override
-  public List<PaymentResponse> getPayments(Long userId, String orderId, String status) {
+  public List<PaymentResponse> getPayments(Long userId, Long orderId, String status) {
     Criteria criteria = new Criteria();
     if (userId != null) {
       criteria.and("user_id").is(userId);
@@ -99,7 +99,7 @@ public class PaymentServiceImpl implements PaymentService {
     return result != null ? Money.of(result.total()).toBigDecimal() : Money.zero().toBigDecimal();
   }
 
- static class TotalSumResult {
+  static class TotalSumResult {
     private long total;
     public long total() { return total; }
     public void setTotal(long total) { this.total = total; }
