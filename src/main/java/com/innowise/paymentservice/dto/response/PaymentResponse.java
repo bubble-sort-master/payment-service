@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 public record PaymentResponse(
         String id,
-        String orderId,
+        Long orderId,
         Long userId,
         PaymentStatus status,
         LocalDateTime timestamp,

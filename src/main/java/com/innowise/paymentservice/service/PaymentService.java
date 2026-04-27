@@ -41,7 +41,7 @@ public interface PaymentService {
    * @param status  the payment status, e.g. {@code "SUCCESS"} or {@code "FAILED"} (maybe null)
    * @return list of payments matching the filters; never null
    */
-  List<PaymentResponse> getPayments(Long userId, String orderId, String status);
+  List<PaymentResponse> getPayments(Long userId, Long orderId, String status);
 
   /**
    * Calculates the total sum of successful payments for a specific user

@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 
 public record CreatePaymentRequest(
         @NotNull(message = "Order ID must not be null")
-        String orderId,
+        Long orderId,
 
         @NotNull(message = "User ID must not be null")
         Long userId,
