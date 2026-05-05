@@ -37,7 +37,7 @@ public class PaymentServiceImpl implements PaymentService {
   @Override
   @Transactional
   public PaymentResponse create(CreatePaymentRequest request) {
-    Integer random = randomNumberClient.getRandomNumber();
+    Integer random = randomNumberClient.getRandomNumber().number();
     PaymentStatus status = (random % 2 == 0) ? PaymentStatus.SUCCESS : PaymentStatus.FAILED;
 
     Payment payment = paymentMapper.toEntity(request);

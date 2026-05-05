@@ -88,7 +88,7 @@ class PaymentServiceIntegrationTest {
             .willReturn(aResponse()
                     .withStatus(200)
                     .withHeader("Content-Type", "application/json")
-                    .withBody(String.valueOf(number))));
+                    .withBody("{\"number\": " + number + "}")));
   }
 
   private Payment createPayment(Long orderId, Long userId, PaymentStatus status, Money amount, LocalDateTime timestamp) {

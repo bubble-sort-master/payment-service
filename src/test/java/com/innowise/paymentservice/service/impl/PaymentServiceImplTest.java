@@ -1,6 +1,7 @@
 package com.innowise.paymentservice.service.impl;
 
 import com.innowise.paymentservice.client.RandomNumberClient;
+import com.innowise.paymentservice.dto.external.RandomNumberResponse;
 import com.innowise.paymentservice.dto.request.CreatePaymentRequest;
 import com.innowise.paymentservice.dto.response.PaymentResponse;
 import com.innowise.paymentservice.entity.Payment;
@@ -78,7 +79,7 @@ class PaymentServiceImplTest {
             null
     );
 
-    when(randomNumberClient.getRandomNumber()).thenReturn(2);
+    when(randomNumberClient.getRandomNumber()).thenReturn(new RandomNumberResponse(2));
     when(paymentMapper.toEntity(validRequest)).thenReturn(paymentEntity);
     when(paymentRepository.save(any(Payment.class))).thenReturn(savedEntity);
     when(paymentMapper.toDto(savedEntity)).thenReturn(response);
@@ -109,7 +110,7 @@ class PaymentServiceImplTest {
     Payment savedEntity = new Payment();
     PaymentResponse response = new PaymentResponse("id", 2L, 2L, PaymentStatus.FAILED, LocalDateTime.now(), BigDecimal.valueOf(50.00), null, null);
 
-    when(randomNumberClient.getRandomNumber()).thenReturn(3);
+    when(randomNumberClient.getRandomNumber()).thenReturn(new RandomNumberResponse(3));
     when(paymentMapper.toEntity(validRequest)).thenReturn(paymentEntity);
     when(paymentRepository.save(any(Payment.class))).thenReturn(savedEntity);
     when(paymentMapper.toDto(savedEntity)).thenReturn(response);
@@ -223,7 +224,7 @@ class PaymentServiceImplTest {
     savedEntity.setStatus(PaymentStatus.SUCCESS);
     savedEntity.setTimestamp(LocalDateTime.now());
 
-    when(randomNumberClient.getRandomNumber()).thenReturn(2);
+    when(randomNumberClient.getRandomNumber()).thenReturn(new RandomNumberResponse(2));
     when(paymentMapper.toEntity(validRequest)).thenReturn(paymentEntity);
     when(paymentRepository.save(any(Payment.class))).thenReturn(savedEntity);
 
