@@ -37,7 +37,7 @@ public class PaymentServiceImpl implements PaymentService {
   @Override
   @Transactional
   public PaymentResponse create(CreatePaymentRequest request) {
-    Integer random = randomNumberClient.getRandomNumber();
+    Integer random = randomNumberClient.getRandomNumber().number();
     PaymentStatus status = (random % 2 == 0) ? PaymentStatus.SUCCESS : PaymentStatus.FAILED;
 
     Payment payment = paymentMapper.toEntity(request);
@@ -53,7 +53,7 @@ public class PaymentServiceImpl implements PaymentService {
   }
 
   @Override
-  public List<PaymentResponse> getPayments(Long userId, String orderId, String status) {
+  public List<PaymentResponse> getPayments(Long userId, Long orderId, String status) {
     Criteria criteria = new Criteria();
     if (userId != null) {
       criteria.and("user_id").is(userId);
@@ -99,7 +99,7 @@ public class PaymentServiceImpl implements PaymentService {
     return result != null ? Money.of(result.total()).toBigDecimal() : Money.zero().toBigDecimal();
   }
 
- static class TotalSumResult {
+  static class TotalSumResult {
     private long total;
     public long total() { return total; }
     public void setTotal(long total) { this.total = total; }

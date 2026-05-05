@@ -88,10 +88,10 @@ class PaymentServiceIntegrationTest {
             .willReturn(aResponse()
                     .withStatus(200)
                     .withHeader("Content-Type", "application/json")
-                    .withBody(String.valueOf(number))));
+                    .withBody("{\"number\": " + number + "}")));
   }
 
-  private Payment createPayment(String orderId, Long userId, PaymentStatus status, Money amount, LocalDateTime timestamp) {
+  private Payment createPayment(Long orderId, Long userId, PaymentStatus status, Money amount, LocalDateTime timestamp) {
     Payment payment = new Payment();
     payment.setOrderId(orderId);
     payment.setUserId(userId);
@@ -106,7 +106,7 @@ class PaymentServiceIntegrationTest {
     stubRandomNumber(4);
 
     CreatePaymentRequest request =
-            new CreatePaymentRequest("order-k1", 10L, BigDecimal.valueOf(123));
+            new CreatePaymentRequest(1L, 10L, BigDecimal.valueOf(123));
 
     mockMvc.perform(MockMvcRequestBuilders.post("/api/payments")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -122,7 +122,7 @@ class PaymentServiceIntegrationTest {
   void createPayment_shouldReturnSuccessWhenRandomIsEven() throws Exception {
     stubRandomNumber(4);
 
-    CreatePaymentRequest request = new CreatePaymentRequest("order-1", 1L, BigDecimal.valueOf(150.00));
+    CreatePaymentRequest request = new CreatePaymentRequest(1L, 1L, BigDecimal.valueOf(150.00));
 
     mockMvc.perform(MockMvcRequestBuilders.post("/api/payments")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -140,7 +140,7 @@ class PaymentServiceIntegrationTest {
   void createPayment_shouldReturnFailedWhenRandomIsOdd() throws Exception {
     stubRandomNumber(5);
 
-    CreatePaymentRequest request = new CreatePaymentRequest("order-2", 2L, BigDecimal.valueOf(50.00));
+    CreatePaymentRequest request = new CreatePaymentRequest(2L, 2L, BigDecimal.valueOf(50.00));
 
     mockMvc.perform(MockMvcRequestBuilders.post("/api/payments")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -154,7 +154,7 @@ class PaymentServiceIntegrationTest {
     wireMockServer.stubFor(get(urlPathEqualTo("/api/random"))
             .willReturn(aResponse().withStatus(503)));
 
-    CreatePaymentRequest request = new CreatePaymentRequest("order-3", 3L, BigDecimal.TEN);
+    CreatePaymentRequest request = new CreatePaymentRequest(3L, 3L, BigDecimal.TEN);
 
     mockMvc.perform(MockMvcRequestBuilders.post("/api/payments")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -174,9 +174,9 @@ class PaymentServiceIntegrationTest {
 
   @Test
   void getPayments_shouldFilterByUserId() throws Exception {
-    createPayment("order-a", 100L, PaymentStatus.SUCCESS, Money.of(2000L), LocalDateTime.now());
-    createPayment("order-b", 100L, PaymentStatus.FAILED, Money.of(3000L), LocalDateTime.now());
-    createPayment("order-c", 200L, PaymentStatus.SUCCESS, Money.of(1000L), LocalDateTime.now());
+    createPayment(1L, 100L, PaymentStatus.SUCCESS, Money.of(2000L), LocalDateTime.now());
+    createPayment(2L, 100L, PaymentStatus.FAILED, Money.of(3000L), LocalDateTime.now());
+    createPayment(3L, 200L, PaymentStatus.SUCCESS, Money.of(1000L), LocalDateTime.now());
 
     mockMvc.perform(MockMvcRequestBuilders.get("/api/payments?userId=100"))
             .andExpect(status().isOk())
@@ -185,18 +185,18 @@ class PaymentServiceIntegrationTest {
 
   @Test
   void getPayments_shouldFilterByOrderIdAndStatus() throws Exception {
-    createPayment("order-x", 10L, PaymentStatus.SUCCESS, Money.zero(), LocalDateTime.now());
-    createPayment("order-y", 10L, PaymentStatus.FAILED, Money.zero(), LocalDateTime.now());
+    createPayment(10L, 10L, PaymentStatus.SUCCESS, Money.zero(), LocalDateTime.now());
+    createPayment(11L, 10L, PaymentStatus.FAILED, Money.zero(), LocalDateTime.now());
 
-    mockMvc.perform(MockMvcRequestBuilders.get("/api/payments?orderId=order-x&status=SUCCESS"))
+    mockMvc.perform(MockMvcRequestBuilders.get("/api/payments?orderId=10&status=SUCCESS"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(1))
-            .andExpect(jsonPath("$[0].orderId").value("order-x"));
+            .andExpect(jsonPath("$[0].orderId").value(10));
   }
 
   @Test
   void getPayments_noFilter_shouldReturnEmptyList() throws Exception {
-    createPayment("order-1", 1L, PaymentStatus.SUCCESS, Money.zero(), LocalDateTime.now());
+    createPayment(1L, 1L, PaymentStatus.SUCCESS, Money.zero(), LocalDateTime.now());
 
     mockMvc.perform(MockMvcRequestBuilders.get("/api/payments"))
             .andExpect(status().isOk())
@@ -206,8 +206,8 @@ class PaymentServiceIntegrationTest {
   @Test
   void getTotalSumForAllUsers_shouldReturnCorrectSum() throws Exception {
     LocalDateTime now = LocalDateTime.now();
-    createPayment("o1", 1L, PaymentStatus.SUCCESS, Money.of(1000L), now);
-    createPayment("o2", 2L, PaymentStatus.SUCCESS, Money.of(2000L), now);
+    createPayment(1L, 1L, PaymentStatus.SUCCESS, Money.of(1000L), now);
+    createPayment(2L, 2L, PaymentStatus.SUCCESS, Money.of(2000L), now);
 
     String from = now.minusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
     String to = now.plusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
@@ -220,9 +220,9 @@ class PaymentServiceIntegrationTest {
   @Test
   void getTotalSumForUser_shouldReturnCorrectSum() throws Exception {
     LocalDateTime now = LocalDateTime.now();
-    createPayment("o1", 1L, PaymentStatus.SUCCESS, Money.of(5000L), now);
-    createPayment("o2", 1L, PaymentStatus.FAILED, Money.of(1000L), now);
-    createPayment("o3", 2L, PaymentStatus.SUCCESS, Money.of(7000L), now);
+    createPayment(1L, 1L, PaymentStatus.SUCCESS, Money.of(5000L), now);
+    createPayment(2L, 1L, PaymentStatus.FAILED, Money.of(1000L), now);
+    createPayment(3L, 2L, PaymentStatus.SUCCESS, Money.of(7000L), now);
 
     String from = now.minusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
     String to = now.plusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);

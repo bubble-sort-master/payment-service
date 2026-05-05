@@ -4,7 +4,7 @@ import com.innowise.paymentservice.entity.PaymentStatus;
 import java.time.LocalDateTime;
 
 public record PaymentEvent(
-        String orderId,
+        Long orderId,
         PaymentStatus status,
         LocalDateTime timestamp
 ) {}

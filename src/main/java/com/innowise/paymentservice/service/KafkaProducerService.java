@@ -19,7 +19,7 @@ public class KafkaProducerService {
 
   public void sendPaymentEvent(PaymentEvent event) {
     try {
-      kafkaTemplate.send(TOPIC, event.orderId(), event).get(10, TimeUnit.SECONDS);
+      kafkaTemplate.send(TOPIC, String.valueOf(event.orderId()), event).get(10, TimeUnit.SECONDS);
       log.info("Payment event sent for order {}", event.orderId());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
