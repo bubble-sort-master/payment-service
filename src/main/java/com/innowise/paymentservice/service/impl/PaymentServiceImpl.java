@@ -9,9 +9,9 @@ import com.innowise.paymentservice.event.PaymentEvent;
 import com.innowise.paymentservice.mapper.PaymentMapper;
 import com.innowise.paymentservice.model.Money;
 import com.innowise.paymentservice.repository.PaymentRepository;
-import com.innowise.paymentservice.service.KafkaProducerService;
 import com.innowise.paymentservice.service.PaymentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -32,7 +32,7 @@ public class PaymentServiceImpl implements PaymentService {
   private final MongoTemplate mongoTemplate;
   private final PaymentMapper paymentMapper;
   private final RandomNumberClient randomNumberClient;
-  private final KafkaProducerService kafkaProducerService;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Override
   @Transactional
@@ -45,8 +45,8 @@ public class PaymentServiceImpl implements PaymentService {
     payment.setTimestamp(LocalDateTime.now());
     Payment saved = paymentRepository.save(payment);
 
-    kafkaProducerService.sendPaymentEvent(
-            new PaymentEvent(saved.getOrderId(), saved.getStatus(), saved.getTimestamp())
+    eventPublisher.publishEvent(
+            new PaymentEvent(PaymentEvent.TYPE_CREATE_PAYMENT, saved.getOrderId(), saved.getStatus(), saved.getTimestamp())
     );
 
     return paymentMapper.toDto(saved);

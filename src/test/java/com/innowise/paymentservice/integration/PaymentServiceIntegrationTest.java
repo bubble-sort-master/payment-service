@@ -5,12 +5,22 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.innowise.paymentservice.dto.request.CreatePaymentRequest;
 import com.innowise.paymentservice.entity.Payment;
 import com.innowise.paymentservice.entity.PaymentStatus;
+import com.innowise.paymentservice.event.PaymentEvent;
 import com.innowise.paymentservice.model.Money;
 import com.innowise.paymentservice.repository.PaymentRepository;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.listener.KafkaMessageListenerContainer;
+import org.springframework.kafka.listener.MessageListener;
+import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
+import org.springframework.kafka.test.utils.ContainerTestUtils;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -28,7 +38,12 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -60,10 +75,14 @@ class PaymentServiceIntegrationTest {
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.mongodb.uri", () ->
-            "mongodb://" + mongoDBContainer.getHost() + ":" + mongoDBContainer.getMappedPort(27017) + "/test");
+    registry.add("spring.mongodb.uri", () -> mongoDBContainer.getReplicaSetUrl("test"));
+    registry.add("spring.mongodb.representation.uuid", () -> "standard");
     registry.add("external.random-number.url", () -> "http://localhost:" + wireMockServer.port());
     registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+    registry.add("spring.kafka.producer.key-serializer",
+            () -> "org.apache.kafka.common.serialization.StringSerializer");
+    registry.add("spring.kafka.producer.value-serializer",
+            () -> "org.apache.kafka.common.serialization.ByteArraySerializer");
   }
 
   @BeforeAll
@@ -105,17 +124,46 @@ class PaymentServiceIntegrationTest {
   void createPayment_shouldSendKafkaEvent_whenKafkaIsAvailable() throws Exception {
     stubRandomNumber(4);
 
-    CreatePaymentRequest request =
-            new CreatePaymentRequest(1L, 10L, BigDecimal.valueOf(123));
+    JacksonJsonDeserializer<PaymentEvent> deserializer =
+            new JacksonJsonDeserializer<>(PaymentEvent.class);
+    deserializer.addTrustedPackages("com.innowise.paymentservice.event");
+    deserializer.setUseTypeHeaders(false);
 
+    Map<String, Object> consumerProps = new HashMap<>();
+    consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
+    consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "test-group");
+    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+    consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+    consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JacksonJsonDeserializer.class);
+    consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
+
+    DefaultKafkaConsumerFactory<String, PaymentEvent> cf =
+            new DefaultKafkaConsumerFactory<>(consumerProps, new StringDeserializer(), deserializer);
+    ContainerProperties containerProps = new ContainerProperties("payment-events");
+    KafkaMessageListenerContainer<String, PaymentEvent> container =
+            new KafkaMessageListenerContainer<>(cf, containerProps);
+    BlockingQueue<ConsumerRecord<String, PaymentEvent>> records = new LinkedBlockingQueue<>();
+    container.setupMessageListener((MessageListener<String, PaymentEvent>) records::add);
+    container.start();
+    ContainerTestUtils.waitForAssignment(container, 1);
+
+    CreatePaymentRequest request = new CreatePaymentRequest(1L, 10L, BigDecimal.valueOf(123));
     mockMvc.perform(MockMvcRequestBuilders.post("/api/payments")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isCreated());
 
+    ConsumerRecord<String, PaymentEvent> received = records.poll(30, TimeUnit.SECONDS);
+    assertThat(received).isNotNull();
+    PaymentEvent event = received.value();
+    assertThat(event).isNotNull();
+    assertThat(event.orderId()).isEqualTo(1L);
+    assertThat(event.status()).isEqualTo(PaymentStatus.SUCCESS);
+
+    container.stop();
+
     List<Payment> payments = paymentRepository.findAll();
     assertThat(payments).hasSize(1);
-    assertThat(kafka.isRunning()).isTrue();
   }
 
   @Test

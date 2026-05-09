@@ -1,6 +1,7 @@
 package com.innowise.paymentservice.repository;
 
 import com.innowise.paymentservice.entity.Payment;
+import com.innowise.paymentservice.entity.PaymentStatus;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,5 +11,5 @@ import java.util.List;
 public interface PaymentRepository extends MongoRepository<Payment, String> {
   List<Payment> findByUserId(Long userId);
   List<Payment> findByOrderId(Long orderId);
-  List<Payment> findByStatus(String status);
+  List<Payment> findByStatus(PaymentStatus status);
 }

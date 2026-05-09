@@ -7,17 +7,16 @@ import com.innowise.paymentservice.dto.response.PaymentResponse;
 import com.innowise.paymentservice.entity.Payment;
 import com.innowise.paymentservice.entity.PaymentStatus;
 import com.innowise.paymentservice.event.PaymentEvent;
-import com.innowise.paymentservice.exception.PaymentEventPublishingException;
 import com.innowise.paymentservice.exception.PaymentProcessingException;
 import com.innowise.paymentservice.mapper.PaymentMapper;
 import com.innowise.paymentservice.repository.PaymentRepository;
-import com.innowise.paymentservice.service.KafkaProducerService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
@@ -49,7 +48,7 @@ class PaymentServiceImplTest {
   private RandomNumberClient randomNumberClient;
 
   @Mock
-  private KafkaProducerService kafkaProducerService;
+  private ApplicationEventPublisher eventPublisher;
 
   @InjectMocks
   private PaymentServiceImpl paymentService;
@@ -61,7 +60,6 @@ class PaymentServiceImplTest {
   @Test
   void create_shouldReturnSuccessWhenRandomIsEven() {
     Payment paymentEntity = new Payment();
-
     Payment savedEntity = new Payment();
     savedEntity.setOrderId(1L);
     savedEntity.setUserId(1L);
@@ -69,14 +67,8 @@ class PaymentServiceImplTest {
     savedEntity.setTimestamp(LocalDateTime.now());
 
     PaymentResponse response = new PaymentResponse(
-            "id",
-            1L,
-            1L,
-            PaymentStatus.SUCCESS,
-            savedEntity.getTimestamp(),
-            BigDecimal.valueOf(100.00),
-            null,
-            null
+            "id", 1L, 1L, PaymentStatus.SUCCESS,
+            savedEntity.getTimestamp(), BigDecimal.valueOf(100.00), null, null
     );
 
     when(randomNumberClient.getRandomNumber()).thenReturn(new RandomNumberResponse(2));
@@ -88,17 +80,11 @@ class PaymentServiceImplTest {
 
     assertThat(result.status()).isEqualTo(PaymentStatus.SUCCESS);
 
-    ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
-    verify(paymentRepository).save(paymentCaptor.capture());
-
-    Payment capturedPayment = paymentCaptor.getValue();
-    assertThat(capturedPayment.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
-    assertThat(capturedPayment.getTimestamp()).isNotNull();
-
     ArgumentCaptor<PaymentEvent> eventCaptor = ArgumentCaptor.forClass(PaymentEvent.class);
-    verify(kafkaProducerService).sendPaymentEvent(eventCaptor.capture());
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
 
     PaymentEvent event = eventCaptor.getValue();
+    assertThat(event.eventType()).isEqualTo(PaymentEvent.TYPE_CREATE_PAYMENT);
     assertThat(event.orderId()).isEqualTo(1L);
     assertThat(event.status()).isEqualTo(PaymentStatus.SUCCESS);
     assertThat(event.timestamp()).isNotNull();
@@ -107,8 +93,23 @@ class PaymentServiceImplTest {
   @Test
   void create_shouldReturnFailedWhenRandomIsOdd() {
     Payment paymentEntity = new Payment();
+
     Payment savedEntity = new Payment();
-    PaymentResponse response = new PaymentResponse("id", 2L, 2L, PaymentStatus.FAILED, LocalDateTime.now(), BigDecimal.valueOf(50.00), null, null);
+    savedEntity.setOrderId(2L);
+    savedEntity.setUserId(2L);
+    savedEntity.setStatus(PaymentStatus.FAILED);
+    savedEntity.setTimestamp(LocalDateTime.now());
+
+    PaymentResponse response = new PaymentResponse(
+            "id",
+            2L,
+            2L,
+            PaymentStatus.FAILED,
+            savedEntity.getTimestamp(),
+            BigDecimal.valueOf(50.00),
+            null,
+            null
+    );
 
     when(randomNumberClient.getRandomNumber()).thenReturn(new RandomNumberResponse(3));
     when(paymentMapper.toEntity(validRequest)).thenReturn(paymentEntity);
@@ -119,10 +120,14 @@ class PaymentServiceImplTest {
 
     assertThat(result.status()).isEqualTo(PaymentStatus.FAILED);
 
-    ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
-    verify(paymentRepository).save(paymentCaptor.capture());
-    Payment capturedPayment = paymentCaptor.getValue();
-    assertThat(capturedPayment.getStatus()).isEqualTo(PaymentStatus.FAILED);
+    ArgumentCaptor<PaymentEvent> eventCaptor = ArgumentCaptor.forClass(PaymentEvent.class);
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
+
+    PaymentEvent event = eventCaptor.getValue();
+    assertThat(event.status()).isEqualTo(PaymentStatus.FAILED);
+    assertThat(event.eventType()).isEqualTo(PaymentEvent.TYPE_CREATE_PAYMENT);
+    assertThat(event.orderId()).isEqualTo(2L);
+    assertThat(event.timestamp()).isNotNull();
   }
 
   @Test
@@ -134,6 +139,7 @@ class PaymentServiceImplTest {
             .hasMessageContaining("Service down");
 
     verify(paymentRepository, never()).save(any());
+    verify(eventPublisher, never()).publishEvent(any());
   }
 
   @Test
@@ -212,33 +218,5 @@ class PaymentServiceImplTest {
     BigDecimal sum = paymentService.getTotalSumForDateRangeForAllUsers(from, to);
 
     assertThat(sum).isEqualByComparingTo(BigDecimal.valueOf(1200.00));
-  }
-
-  @Test
-  void create_shouldThrowPaymentEventPublishingExceptionWhenKafkaPublishingFails() {
-    Payment paymentEntity = new Payment();
-
-    Payment savedEntity = new Payment();
-    savedEntity.setOrderId(1L);
-    savedEntity.setUserId(1L);
-    savedEntity.setStatus(PaymentStatus.SUCCESS);
-    savedEntity.setTimestamp(LocalDateTime.now());
-
-    when(randomNumberClient.getRandomNumber()).thenReturn(new RandomNumberResponse(2));
-    when(paymentMapper.toEntity(validRequest)).thenReturn(paymentEntity);
-    when(paymentRepository.save(any(Payment.class))).thenReturn(savedEntity);
-
-    doThrow(new PaymentEventPublishingException(
-            "Could not publish payment event",
-            new RuntimeException("Kafka error")
-    )).when(kafkaProducerService).sendPaymentEvent(any(PaymentEvent.class));
-
-    assertThatThrownBy(() -> paymentService.create(validRequest))
-            .isInstanceOf(PaymentEventPublishingException.class)
-            .hasMessageContaining("Could not publish payment event");
-
-    verify(paymentRepository).save(any(Payment.class));
-    verify(kafkaProducerService).sendPaymentEvent(any(PaymentEvent.class));
-    verify(paymentMapper, never()).toDto(any(Payment.class));
   }
 }
