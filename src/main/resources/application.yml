@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: payment-service
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/payment-service}
+    representation:
+      uuid: standard
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      properties:
+        spring.json.add.type.headers: false
+resilience4j:
+  circuitbreaker:
+    instances:
+      random-number-service:
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 3
+        minimumNumberOfCalls: 5
+
+external:
+  random-number:
+    url: ${RANDOM_NUMBER_SERVICE_URL:http://localhost:8090}

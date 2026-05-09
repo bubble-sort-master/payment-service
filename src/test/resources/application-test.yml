@@ -1,0 +1,8 @@
+spring:
+  mongodb:
+    representation:
+      uuid: standard
+
+external:
+  random-number:
+    url: ${random.service.url}

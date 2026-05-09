@@ -1,0 +1,18 @@
+spring:
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://mongodb:27017/payment-service?replicaSet=rs0}
+    representation:
+      uuid: standard
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9093}
+
+external:
+  random-number:
+    url: ${RANDOM_NUMBER_SERVICE_URL:http://random-number-service:8090}
+
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
