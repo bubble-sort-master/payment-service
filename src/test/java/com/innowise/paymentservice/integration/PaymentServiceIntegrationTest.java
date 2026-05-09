@@ -277,7 +277,7 @@ class PaymentServiceIntegrationTest {
 
     mockMvc.perform(MockMvcRequestBuilders.get("/api/payments/total/user/1?from=" + from + "&to=" + to))
             .andExpect(status().isOk())
-            .andExpect(content().string("60.00"));
+            .andExpect(content().string("50.00"));
   }
 
   @Test

@@ -2,9 +2,7 @@ package com.innowise.paymentservice.entity;
 
 import com.innowise.paymentservice.model.Money;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -43,12 +41,4 @@ public class Payment {
 
   @Field("payment_amount")
   private Money paymentAmount;
-
-  @CreatedDate
-  @Field("created_at")
-  private LocalDateTime createdAt;
-
-  @LastModifiedDate
-  @Field("updated_at")
-  private LocalDateTime updatedAt;
 }

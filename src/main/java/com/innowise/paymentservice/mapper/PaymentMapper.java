@@ -17,8 +17,6 @@ public interface PaymentMapper {
   @Mapping(target = "status", ignore = true)
   @Mapping(target = "timestamp", ignore = true)
   @Mapping(target = "paymentAmount", source = "amount", qualifiedByName = "bigDecimalToMoney")
-  @Mapping(target = "createdAt", ignore = true)
-  @Mapping(target = "updatedAt", ignore = true)
   Payment toEntity(CreatePaymentRequest request);
 
   @Mapping(target = "amount", source = "paymentAmount", qualifiedByName = "moneyToBigDecimal")

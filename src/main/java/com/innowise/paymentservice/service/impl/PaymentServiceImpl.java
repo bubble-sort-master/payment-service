@@ -77,6 +77,7 @@ public class PaymentServiceImpl implements PaymentService {
   @Override
   public BigDecimal getTotalSumForDateRangeForUser(Long userId, LocalDateTime from, LocalDateTime to) {
     var match = match(Criteria.where("user_id").is(userId)
+            .and("status").is(PaymentStatus.SUCCESS.name())
             .and("timestamp").gte(from).lte(to));
     var group = group().sum("payment_amount").as("total");
 
@@ -89,7 +90,8 @@ public class PaymentServiceImpl implements PaymentService {
 
   @Override
   public BigDecimal getTotalSumForDateRangeForAllUsers(LocalDateTime from, LocalDateTime to) {
-    var match = match(Criteria.where("timestamp").gte(from).lte(to));
+    var match = match(Criteria.where("status").is(PaymentStatus.SUCCESS.name())
+            .and("timestamp").gte(from).lte(to));
     var group = group().sum("payment_amount").as("total");
 
     var agg = newAggregation(match, group);
